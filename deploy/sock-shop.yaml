@@ -767,16 +767,6 @@ spec:
   selector:
     name: user
 ---
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: basic-ingress
-  namespace: sock-shop
-spec:
-  backend:
-    serviceName: front-end
-    servicePort: 80
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
