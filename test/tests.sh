@@ -100,7 +100,7 @@ function run_experiment() {
     namespace=$(yq r "${experiment_file}" 'metadata.namespace')
 
     echo ">> Waiting roll out all"
-    kubectl -n "${namespace}" get deploy -o json | jq -r '.items[].metadata.name' | xargs -t -n 1 -P 2 kubectl -n "${namespace}" rollout status deploy
+    kubectl -n "${namespace}" get deploy -o json | jq -r '.items[].metadata.name' | xargs -n 1 -P 2 kubectl -n "${namespace}" rollout status deploy
 
     echo ">> Deploying ${result_name}.${namespace}"
     set +e
