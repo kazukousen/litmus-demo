@@ -33,7 +33,7 @@ function setup_kind() {
 }
 
 function setup_eks() {
-    if [ ! $(command -v eksctl) ]; then
+    if [[ ! $(command -v eksctl) ]]; then
         echo ">>> Installing eksctl"
         curl -sL "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
         sudo mv /tmp/eksctl /usr/local/bin
@@ -41,9 +41,9 @@ function setup_eks() {
     fi
 
     echo ">>> Creating EKS cluster"
-    eksctl create cluster --name chaos-demo --region ap-northeast-1 \
-        --node-type r5.large --nodes 3 --nodes-min 1 --nodes-max 4 \
-        --set-kubeconfig-context false
+    eksctl create cluster --name=chaos-demo --region=ap-northeast-1 \
+        --node-type=r5.large --nodes=3 --nodes-min=1 --nodes-max=4 \
+        --set-kubeconfig-context=false
 
     aws eks-kubeconfig --name chaos-demo --alias chaos-demo
 }
