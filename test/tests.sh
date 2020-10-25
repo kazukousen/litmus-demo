@@ -45,7 +45,7 @@ function setup_eks() {
         --node-type=r5.large --nodes=3 --nodes-min=1 --nodes-max=4 \
         --set-kubeconfig-context=false
 
-    aws eks-kubeconfig --name chaos-demo --alias chaos-demo
+    aws eks update-kubeconfig --name chaos-demo --alias chaos-demo
 }
 
 function cleanup() {
@@ -99,21 +99,25 @@ function run_experiment() {
     result_name=$(yq r "${experiment_file}" 'metadata.name')
     namespace=$(yq r "${experiment_file}" 'metadata.namespace')
 
+    echo ">> Waiting roll out all"
+    kubectl -n "${namespace}" get deploy -o json | jq -r '.items[].metadata.name' | xargs -t -n 1 -P 2 kubectl -n "${namespace}" rollout status deploy
+
     echo ">> Deploying ${result_name}.${namespace}"
     set +e
     kubectl -n "${namespace}" delete chaosengine "${result_name}" 2> /dev/null
     set -e
     kubectl apply -f "${experiment_file}"
 
-    kubectl -n "${namespace}" get chaosengine "${result_name}" -o jsonpath='{.status.experiments[0].status}'
-
     attempts=50
     count=0
     ok=false
+    echo ">>> Running chaos"
     until ${ok}; do
         kubectl -n "${namespace}" get chaosengine "${result_name}" -o jsonpath='{.status.experiments[0].status}' | grep "Completed" && ok=true || ok=false
         sleep 10
+        set +e
         kubectl -n "${namespace}" logs --since=10s -l name="${experiment}"
+        set -e
         count=$((count + 1))
         if [[ ${count} -eq ${attempts} ]]; then
             kubectl -n "${namespace}" describe chaosengine "${result_name}"
@@ -127,6 +131,7 @@ function run_experiment() {
     echo "Status: ${res}"
     if [ "${res}" != "Success" ]; then
         kubectl -n "${namespace}" describe chaosresult "${result_name}-${experiment}"
+        kubectl -n "${namespace}" logs -l name="${experiment}"
         exit 1
     fi
 }
