@@ -7,18 +7,43 @@ KIND_VERSION=v0.8.1
 KUBE_VERSION=v1.17.11
 KUBERNETES_CHAOS_HELM_VERSION=2.2.3
 
-function setup() {
-case $1 in
-    kind)
-    setup_kind "$@"
-    ;;
-    eks)
-    setup_eks "$@"
-    ;;
-esac
+main() {
+    case "$1" in
+        start)
+            shift 1
+            setup "$@"
+            ;;
+        stop)
+            shift 1
+            cleanup "$@"
+            ;;
+        install)
+            shift 1
+            install_dependencies "$@"
+            ;;
+        list)
+            shift 1
+            list "$@"
+            ;;
+        run)
+            shift 1
+            run "$@"
+            ;;
+    esac
 }
 
-function setup_kind() {
+setup() {
+    case $1 in
+        kind)
+        setup_kind "$@"
+        ;;
+        eks)
+        setup_eks "$@"
+        ;;
+    esac
+}
+
+setup_kind() {
 
     if [[ ! $(command -v kind) ]]; then
         echo ">>> Installing Kind"
@@ -32,7 +57,7 @@ function setup_kind() {
     kubectl cluster-info --context kind-kind
 }
 
-function setup_eks() {
+setup_eks() {
     if [[ ! $(command -v eksctl) ]]; then
         echo ">>> Installing eksctl"
         curl -sL "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
@@ -48,7 +73,7 @@ function setup_eks() {
     aws eks update-kubeconfig --name chaos-demo --alias chaos-demo
 }
 
-function cleanup() {
+cleanup() {
     case $1 in
     kind)
         echo ">>> Shutting down kind cluster"
@@ -61,7 +86,7 @@ function cleanup() {
     esac
 }
 
-function install_dependencies() {
+install_dependencies() {
 
     echo ">>> Deploying sock shop"
     kubectl apply -f "${REPO_ROOT}/deploy/sock-shop.yaml"
@@ -88,7 +113,7 @@ function install_dependencies() {
     kubectl apply -f "${REPO_ROOT}/deploy/litmus-rbac.yaml"
 }
 
-function run_experiment() {
+run_experiment() {
     experiment=$1
     experiment_file="${REPO_ROOT}/litmus/${experiment}.yaml"
     if [[ ! -e "${experiment_file}" ]]; then
@@ -113,7 +138,7 @@ function run_experiment() {
     ok=false
     echo ">>> Running chaos"
     until ${ok}; do
-        kubectl -n "${namespace}" get chaosengine "${result_name}" -o jsonpath='{.status.experiments[0].status}' | grep "Completed" && ok=true || ok=false
+        kubectl -n "${namespace}" get chaosengine "${result_name}" -o jsonpath='{.status.experiments[0].status}' | grep "completed" && ok=true || ok=false
         sleep 10
         set +e
         kubectl -n "${namespace}" logs --since=10s -l name="${experiment}"
@@ -136,33 +161,13 @@ function run_experiment() {
     fi
 }
 
-function run() {
+run() {
     run_experiment "$@"
 }
 
-function list() {
+list() {
     kubectl -n sock-shop get chaosexperiments -o json | jq -r '.items[].metadata.name'
 }
 
-case "$1" in
-    start)
-        shift 1
-        setup "$@"
-        ;;
-    stop)
-        shift 1
-        cleanup "$@"
-        ;;
-    install)
-        shift 1
-        install_dependencies "$@"
-        ;;
-    list)
-        shift 1
-        list "$@"
-        ;;
-    run)
-        shift 1
-        run "$@"
-        ;;
-esac
+main "$@"
+
